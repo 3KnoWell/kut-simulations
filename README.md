@@ -150,7 +150,7 @@ COMPLETE TRANSCRIPT BELOW
 PAPERS AND RESOURCES:
 - Full Theory: https://zenodo.org/record/[your DOI]
 - Death Experience: https://zenodo.org/record/[your DOI]
-- GitHub: https://github.com/[your repo]
+- GitHub: https://github.com/3KnoWell/kut-simulations
 - etc.
 
 KEYWORDS: ternary time, KnoWellian tensor, consciousness, 
