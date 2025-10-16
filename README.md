@@ -1,3 +1,113 @@
+
+
+KUT Simulation Production Runner
+===============================
+
+Files:
+- kut_sim_module.py       : Simulation kernels (2D & 3D) + detection & IO helpers
+- kut_sweep_driver.py     : Parallel driver to run parameter sweeps & repeats
+- sweep_config_template.json : (optional) example config
+- README_run.txt          : This file
+
+Dependencies:
+- Python 3.9+ recommended
+- numpy
+- scipy
+- matplotlib (optional, for plotting)
+- numba (optional but recommended for speed)
+- tqdm (optional for progress bars)
+- (Optional) scikit-learn if you want DBSCAN clustering instead of histogram
+
+Install (pip):
+    python -m pip install numpy scipy matplotlib numba tqdm
+
+Suggested hardware:
+- Moderate production run: 32 CPU cores, 64 GB RAM
+- Large production run (high N, many repeats): 64+ cores, 128+ GB RAM
+- Node-local SSD recommended for intermediate per-run NPZ files
+- For best performance, run the driver on an HPC cluster with an array job or use the --workers argument
+
+How to run (quick start):
+1) Edit the default parameter grid directly in kut_sweep_driver.py or create a JSON config file like:
+
+{
+  "Gs": [0.03, 0.06, 0.09],
+  "Ns": [300, 500, 700],
+  "anns": [0.04, 0.08, 0.12],
+  "repeats": 6,
+  "dim": 2,
+  "extra": {
+    "ratio_control": 0.5,
+    "steps": 1200,
+    "dt": 0.02,
+    "L": 20.0,
+    "soft": 0.001,
+    "record_interval": 60
+  }
+}
+
+Save as sweep_config.json.
+
+2) Run locally:
+    python kut_sweep_driver.py --config sweep_config.json --outdir /path/to/outdir --workers 16
+
+3) After the run completes, the outdir contains:
+   - per-run files: dim*_G*_N*_ann*_seed*.npz and .json (cluster summary)
+   - summary.csv (aggregated max cluster sizes)
+   - You can aggregate and plot with your favourite tools (I recommend a Jupyter notebook to load NPZs and generate phase diagrams and quantization plots)
+
+SLURM example (batch submission):
+-------------------------------
+Create a job script (slurm_run.sh):
+
+#!/bin/bash
+#SBATCH --job-name=kut_sweep
+#SBATCH --cpus-per-task=32
+#SBATCH --mem=128G
+#SBATCH --time=12:00:00
+#SBATCH --output=kut_sweep.%j.out
+
+module load anaconda
+source activate myenv   # where dependencies are installed
+
+python /path/to/kut_sweep_driver.py --config /path/to/sweep_config.json --outdir /scratch/$USER/kut_out --workers 32
+
+Submit:
+    sbatch slurm_run.sh
+
+Checkpoint & resume:
+- The driver checks for existing `.npz` files and will skip tasks that are already present. If a job is interrupted, relaunching with the same outdir resumes unfinished tasks.
+
+Detection thresholds (tuning):
+- "cosine string" candidate criteria (suggested):
+    - max_cluster_size >= 30
+    - elongation >= 3.0
+    - cluster persists across >= 5 recorded frames (record_interval controls frame spacing)
+- These are heuristics — adjust depending on L, N, and your physical scale.
+
+Quantization testing:
+- After a coarse sweep identifies promising cells, run a fine scan over G (or other parameter) in that cell with many repeats (e.g., 20–50 repeats per value).
+- Aggregate cluster Lz from each repeat, compute median & IQR vs parameter, and use clustering / histogram techniques to find "sticky" plateaus.
+- If plateaus are observed, run additional high-resolution repeats and long-time simulations to confirm stability.
+
+3D relativistic runs:
+- The 3D integrator is an approximate perpendicular-acceleration directional integrator. For production, use smaller N (e.g., 150–250) per node and run multiple repeats in parallel.
+
+Post-processing suggestions:
+- Use a Jupyter notebook to:
+    - load NPZs, extract cluster_summary, build phase diagrams (heatmaps of max_cluster_size over (G,N) for fixed ann),
+    - for quantization: plot Lz vs G with error bars and run clustering on Lz values to find plateaus,
+    - compute persistence of cluster over time and produce animations of "cosine string" candidates.
+
+Contact:
+When you run the sweep on your chosen hardware, return the outdir (or the summary files) and I will:
+- produce publication-quality phase diagrams,
+- run the quantization analysis, and
+- examine 3D snapshots for stability and topology (TDA/persistent homology) as requested.
+
+Good luck — point the observatory at the heavens and bring back the catalogs. We'll analyze them together.
+
+
 # The KnoWellian Universe Theory
 
 ## A Unified Gauge Theory of Ternary Time, Consciousness, and Cosmology
